@@ -16,7 +16,7 @@ class ResultActivity : AppCompatActivity() {
         val src = BitmapFactory.decodeFile(path)
 
         // Run placeholder inference
-        val res = InferenceEngine.run(src)
+        val res = InferenceEngine.run(src, this)
 
         // Alpha-blend mask (cyan) over the photo
         val overlay = src.copy(Bitmap.Config.ARGB_8888, true)

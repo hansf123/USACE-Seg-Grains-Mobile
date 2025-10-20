@@ -15,4 +15,11 @@
         android:layout_margin="16dp"
         android:contentDescription="Capture"
         android:src="@android:drawable/ic_menu_camera"/>
+    <Button
+        android:id="@+id/downloadBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp"
+        android:text="Download model" />
+
 </LinearLayout>

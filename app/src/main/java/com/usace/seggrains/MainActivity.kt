@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -16,6 +17,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MainActivity : AppCompatActivity() {
@@ -30,9 +33,29 @@ class MainActivity : AppCompatActivity() {
         viewFinder = findViewById(R.id.viewFinder)
         val captureBtn: View = findViewById(R.id.captureBtn)
 
+        // Optional: if you added a dedicated download button in activity_main.xml
+        // <Button android:id="@+id/downloadBtn" ... text="Download model" />
+        val downloadBtn: Button? = findViewById<Button?>(R.id.downloadBtn)
+
         requestPermissionsIfNeeded { startCamera() }
 
+        // Take photo on tap
         captureBtn.setOnClickListener { takePhoto() }
+
+        // Download model on button tap (if present in layout)
+        downloadBtn?.setOnClickListener {
+            Toast.makeText(this, "Downloading model…", Toast.LENGTH_SHORT).show()
+            // TODO: replace with YOUR public HF URL (verify it downloads in a browser first)
+            val url = "https://huggingface.co/hansf123/seg-grains/resolve/main/grains.pte?download=1"
+            lifecycleScope.launch {
+                try {
+                    ModelManager.downloadLatest(this@MainActivity, url)
+                    Toast.makeText(this@MainActivity, "Model downloaded", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "Download failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun requestPermissionsIfNeeded(onGranted: () -> Unit) {
@@ -95,10 +118,20 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     Toast.makeText(this@MainActivity, "Saved: ${file.name}", Toast.LENGTH_SHORT).show()
+
+                    // Extra toast: which inference path will be used on the next screen
+                    val usingModel = ModelManager.isDownloaded(this@MainActivity)
+                    Toast.makeText(
+                        this@MainActivity,
+                        if (usingModel) "Using ExecuTorch model" else "Using fallback (Otsu)",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
                     val intent = Intent(this@MainActivity, ResultActivity::class.java)
                         .putExtra("path", file.absolutePath)
                     startActivity(intent)
                 }
+
             }
         )
     }
