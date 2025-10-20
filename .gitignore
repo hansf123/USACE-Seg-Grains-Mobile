@@ -1,0 +1,20 @@
+# Android / Gradle
+.gradle/
+.idea/
+**/build/
+local.properties
+*.iml
+.cxx/
+
+# Android Studio
+captures/
+.externalNativeBuild/
+
+# App assets we don't want in git
+app/src/main/assets/*.pte
+app/src/main/assets/*.onnx
+
+# Python
+__pycache__/
+.venv/
+.env
