@@ -128,7 +128,6 @@ class MainActivity : AppCompatActivity() {
                     ).show()
 
                     val intent = Intent(this@MainActivity, ResultActivity::class.java)
-                        .putExtra("path", file.absolutePath)
                     startActivity(intent)
                 }
 

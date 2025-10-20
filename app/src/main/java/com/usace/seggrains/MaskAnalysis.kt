@@ -1,4 +1,4 @@
-package com.usace.seggrains
+package com.usace.segrains
 
 import android.graphics.Bitmap
 import java.util.ArrayDeque
@@ -18,13 +18,17 @@ data class GrainStats(
 object MaskAnalysis {
 
     // ---- TUNABLES (start here if counts still look off) ----
-    private const val CLOSE_RADIUS = 3    // pixels; fill small gaps (increase if over-splitting)
-    private const val OPEN_RADIUS  = 1    // pixels; remove tiny specks
-    private const val MERGE_PAD    = 2    // pixels; expand boxes when checking “touching”
-    private const val DO_MERGE_TOUCHING = true
+
+
+    private const val CLOSE_RADIUS = 1       // smaller: don't bridge neighbors
+    private const val OPEN_RADIUS  = 2       // remove pepper noise
+    private const val MERGE_PAD    = 0       // don't auto-merge boxes
+    private const val DO_MERGE_TOUCHING = false
     private const val USE_8_CONNECTED = true
-    private const val MIN_AREA_FRAC = 0.0008  // 0.08% of image as minimum blob size
-    private const val MIN_AREA_ABS  = 120     // absolute floor in pixels
+    private const val MIN_AREA_FRAC = 0.0015 // ~0.15% of image area
+    private const val MIN_AREA_ABS  = 1500   // floor in pixels (bump to 2500 if crumbs remain)
+
+
 
     // ---- Public API ----
     // Input: ALPHA_8 bitmap where alpha>127 is foreground.

@@ -11,8 +11,28 @@
         android:scaleType="fitCenter" />
 
     <Button
+        android:id="@+id/calibrateBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Calibrate (tap 2 points)"/>
+
+    <Button
+        android:id="@+id/saveDownloadsBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Save CSVs to Downloads"/>
+
+    <Button
         android:id="@+id/backBtn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Back to Camera"/>
+
+    <Button
+        android:id="@+id/shareBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Share CSVs" />
+
+
 </LinearLayout>

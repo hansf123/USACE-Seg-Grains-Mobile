@@ -101,33 +101,69 @@ object InferenceEngine {
         val h = bitmap.height
         val total = w * h
 
-        // Luminance + histogram
+        // 1) Luminance
         val pixels = IntArray(total)
         bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
         val lum = IntArray(total)
-        val hist = IntArray(256)
         for (i in 0 until total) {
             val p = pixels[i]
-            val r = (p shr 16) and 0xFF
-            val g = (p shr 8) and 0xFF
+            val r = (p ushr 16) and 0xFF
+            val g = (p ushr 8) and 0xFF
             val b = p and 0xFF
-            val y = (0.299 * r + 0.587 * g + 0.114 * b).roundToInt().coerceIn(0, 255)
-            lum[i] = y
-            hist[y]++
+            lum[i] = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
         }
 
-        // Otsu threshold
+        // 2) Background normalization (big Gaussian → subtract)
+        // radius ~ image size / 30 (tunes out slow lighting gradients & shadows)
+        val radius = (minOf(w, h) / 30).coerceAtLeast(15)
+        // cheap separable blur
+        fun blur1d(src: IntArray, W: Int, H: Int, rad: Int): IntArray {
+            val out = IntArray(W * H)
+            val tmp = IntArray(W * H)
+            val k = IntArray(2 * rad + 1) { 1 } // box kernel; good enough here
+            val ks = k.size
+            // horizontal
+            for (y in 0 until H) {
+                var sum = 0
+                for (x in -rad until W + rad) {
+                    val xiAdd = (x + rad).coerceIn(0, W - 1)
+                    val xiSub = (x - rad - 1).coerceIn(0, W - 1)
+                    sum += src[y * W + xiAdd]
+                    if (x - rad - 1 >= 0) sum -= src[y * W + xiSub]
+                    if (x >= 0) tmp[y * W + x] = sum / ks
+                }
+            }
+            // vertical
+            for (x in 0 until W) {
+                var sum = 0
+                for (y in -rad until H + rad) {
+                    val yiAdd = (y + rad).coerceIn(0, H - 1)
+                    val yiSub = (y - rad - 1).coerceIn(0, H - 1)
+                    sum += tmp[yiAdd * W + x]
+                    if (y - rad - 1 >= 0) sum -= tmp[yiSub * W + x]
+                    if (y >= 0) out[y * W + x] = sum / ks
+                }
+            }
+            return out
+        }
+        val bg = blur1d(lum, w, h, radius)
+
+        // 3) Normalize & clamp to 0..255
+        val norm = IntArray(total)
+        for (i in 0 until total) {
+            val v = (lum[i] - bg[i] + 128).coerceIn(0, 255)
+            norm[i] = v
+        }
+
+        // 4) Otsu on normalized luminance
+        val hist = IntArray(256)
+        for (v in norm) hist[v]++
         var sumAll = 0L
         for (i in 0..255) sumAll += i.toLong() * hist[i]
-        var sumB = 0L
-        var wB = 0L
-        var maxVar = -1.0
-        var t = 128
+        var sumB = 0L; var wB = 0L; var maxVar = -1.0; var t = 128
         for (k in 0..255) {
-            wB += hist[k]
-            if (wB == 0L) continue
-            val wF = total.toLong() - wB
-            if (wF == 0L) break
+            wB += hist[k]; if (wB == 0L) continue
+            val wF = total.toLong() - wB; if (wF == 0L) break
             sumB += k.toLong() * hist[k]
             val mB = sumB.toDouble() / wB
             val mF = (sumAll - sumB).toDouble() / wF
@@ -135,24 +171,24 @@ object InferenceEngine {
             if (between > maxVar) { maxVar = between; t = k }
         }
 
-        // Binary mask
-        val mask = Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8)
+        // 5) Binary mask (dark = foreground)
         val m = ByteArray(total)
         var white = 0
         for (i in 0 until total) {
-            val on = lum[i] < t
+            val on = norm[i] < t
             if (on) { m[i] = 0xFF.toByte(); white++ } else m[i] = 0x00
         }
-        mask.copyPixelsFromBuffer(ByteBuffer.wrap(m))
+        val mask = Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8)
+        mask.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(m))
         val coverage = (100.0 * white / total).coerceIn(0.0, 100.0)
 
-        // Crude seed estimate (grid sampling)
+        // 6) Rough count via grid (kept as-is; CCL gives real count later)
         val step = maxOf(24, minOf(w, h) / 48)
         var count = 0
-        for (yy in 0 until h step step)
-            for (xx in 0 until w step step)
-                if ((m[yy * w + xx].toInt() and 0xFF) > 127) count++
+        for (yy in 0 until h step step) for (xx in 0 until w step step)
+            if ((m[yy * w + xx].toInt() and 0xFF) > 127) count++
 
         return Result(mask, count, coverage)
     }
+
 }
